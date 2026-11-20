@@ -15,7 +15,7 @@
 // in for /bot and /output. Standard library only; no network, no wall clock,
 // no files outside this repository — the two runs write the same bytes.
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
@@ -26,6 +26,24 @@ const target = join(OUTPUT_DIR, 'VIDEO.json');
 
 if (!existsSync(source)) {
   console.error(`VIDEO.json not found in ${BOT_DIR}`);
+  process.exit(1);
+}
+
+// The gate reads VIDEO.json as JSON and needs a url string in it, so refuse
+// a malformed file here instead of handing the gate something it cannot read.
+let address: unknown;
+try {
+  address = JSON.parse(readFileSync(source, 'utf8')) as unknown;
+} catch {
+  console.error(`VIDEO.json in ${BOT_DIR} is not valid JSON`);
+  process.exit(1);
+}
+if (
+  typeof address !== 'object' ||
+  address === null ||
+  typeof (address as { url?: unknown }).url !== 'string'
+) {
+  console.error(`VIDEO.json in ${BOT_DIR} holds no url string`);
   process.exit(1);
 }
 
